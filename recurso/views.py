@@ -5,7 +5,7 @@ from rest_framework import viewsets
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from recurso.models import Estado, Marca, Modelo, RecursoTecnologico
+from recurso.models import Estado, GestorIngresoMantenimiento, Marca, Modelo, RecursoTecnologico
 from rest_framework.views import APIView
 from rest_framework import generics
 
@@ -109,5 +109,16 @@ class RecursoTecnologicoDisponible(generics.ListAPIView):
     def get_queryset(self):
         # Recuros disponibles
         return RecursoTecnologico.objects.all()
+
+
+class VerificarTurnoDisponible(APIView):
+    
+
+    def post(self, request):
+        # Recuros disponibles
+        print(request)
+        gm = GestorIngresoMantenimiento()
+        gm.verificarTurno()
+        return Response('Hola')
 
    

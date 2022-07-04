@@ -2,16 +2,54 @@ from ast import Raise
 from re import A
 from django.db import models
 from PIL import Image
+from mantenimiento.models import Turno
+
+from personal.models import AsignacionResponsableTecnicoRT, PersonalCientifico
 
 class GestorIngresoMantenimiento():
-    fecha = ''
+    fecha = None
+    fechaHoraActual = None
     reurso_seleccionado = ''
-    personalCientifico = ''
+    usuario = 1
+    personalCientifico = 1
+    turnos = []
+    asignacion_actual = None
+    recursos_disponibles = [] 
+
+    recursos_disponibles_datos = []
     def __init__(self) -> None:
         pass
+    # Paso 1
+    def agruparRTPorTipoDeRecurso():
+        #Implementar
+        pass
+    def buscarRT(self):
+        asignaciones = AsignacionResponsableTecnicoRT.objects.all()
+        
+        for asignacion in asignaciones:
+            if asignacion.esPersonalCientificoLogueado():
+                self.asignacion_actual = asignacion
+        if self.asignacion_actual:
+            self.recursos_disponibles = self.asignacion_actual.buscarRTDisponible()
+        if self.recursos_disponibles:
+            for recurso in self.recursos_disponibles:
+                self.recursos_disponibles_datos.append(recurso.getDatos())
+        if self.recursos_disponibles_datos:
+            self.agruparRTPorTipoDeRecurso()
+
 
     def verificarTurno(self):
-        self.personalCientifico.verificarTurno(recurso = self.reurso_seleccionado, fecha = self.fecha )
+        recurso = RecursoTecnologico.objects.get(pk=1)
+        personal = PersonalCientifico.objects.get(pk=1) # borrar
+        turnos_recurso = personal.obtenerTurnosRecurso(recurso)
+        if len(self.turnos):
+            self.fechaHoraActual = ''
+            #LOOP
+            for turno in turnos_recurso:
+                if turno.dentroFechaMantenimiento():
+                    if turno.estado.esReservable():
+                        pass
+
 
     
 
@@ -20,7 +58,7 @@ class Estado(models.Model):
     descripcion = models.CharField(max_length = 500)
     ambito = models.CharField(max_length = 50,default = '')
     esCancelable = models.BooleanField(default = False)
-    esReservable = models.BooleanField(default = False)
+    reservable = models.BooleanField(default = False)
 
     class Meta:
         verbose_name_plural = "Estados"
@@ -31,6 +69,13 @@ class Estado(models.Model):
         pass
     def mostrarEstado():
         pass
+    def esReservable(self):
+        return self.reservable
+    def esAmbitoRT(self):
+        return self.ambito == 'RT'
+    def esDisponible(self):
+        return self.nombre == 'Disponible'
+
 
 class CambioEstadoRT(models.Model):
     fechaHoraDesde = models.DateTimeField(null = True)
@@ -43,6 +88,26 @@ class CambioEstadoRT(models.Model):
 
     def __str__(self):
         return '{}-{}'.format(self.fechaHoraDesde,self.estado.nombre)
+
+    def esReservable(self):
+        return self.estado.esReservable()
+
+    def esDisponible(self):
+
+        estados = Estado.objects.all()
+        estados_RT = []
+        for estado in estados:
+            if self.estado.esAmbitoRT():
+                estados_RT.append(estado)
+        
+        estado_disponible = None
+        for estado in estados_RT:
+            if self.estado.esDisponible():
+                estado_disponible = estado
+
+        return self.estado == estado_disponible
+        
+        
 class Marca(models.Model):
     nombre = models.CharField(max_length = 500)
     
@@ -62,8 +127,12 @@ class Modelo(models.Model):
     def __str__(self):
         return '{}'.format(self.nombre)
 
+    def getMarca():
+        return self.marca.getNombre()
+
     def getNombreModelo(self):
-        return self.marca
+
+        return self.nombre, self.getMarca()
 
 class TipoRecursoTecnologico(models.Model):
     nombre = models.CharField(max_length = 50,null=True)
@@ -102,21 +171,13 @@ class RecursoTecnologico(models.Model):
     actual = models.ForeignKey(CambioEstadoRT, on_delete = models.PROTECT, null = True, related_name='actual')
     cambioEstadoRT = models.ForeignKey(CambioEstadoRT, on_delete = models.PROTECT, null = True, related_name='cambioEstadoRT')
     tipoRecurso = models.ForeignKey(TipoRecursoTecnologico, on_delete = models.PROTECT, null = True, related_name='tipo_recurso')
-    turnos = models.ForeignKey(TipoRecursoTecnologico, on_delete = models.PROTECT, null = True, related_name='tipo_recurso')
-
-
-
-
-   
+    turnos = models.ForeignKey(Turno, on_delete = models.PROTECT, null = True, blank=True, related_name='turno')
     class Meta:
         verbose_name_plural = "RecursosTecnologicos"
-
     def __str__(self):
         return '{}'.format(self.numeroRT)
-
     def crear():
         pass
-
     def mostrarRT():
         pass
     def habilitar():
@@ -124,20 +185,33 @@ class RecursoTecnologico(models.Model):
     def conocerCategoria():
         pass
     def miModeloYMarca():
-        pass
+        return self.modelo.getNombreModelo()
     def nuevoMantenimientoPreventivo():
         pass
-    def misTurnosDisponibles(self):
+    def getTurnos(self):
         #Buscar mis turnos disponibles
-        mis_turnos = self.turnos.all()
-        turnos_disponibles = []
-        if mis_turnos:
-            for turno in mis_turnos:
-                if turno.esDisponible:
-                    turnos_disponibles.append(turno)
+        turnos = []
+        for turno in self.turnos:
+            turnos.append(turno.getDatos())
+        return turnos
 
-        else:
-            return turnos_disponibles
+        # return self.turnos.all() 
+    def esRTDisponible(self):
+        return self.actual.esDisponible()
+
+    def getTipoRecurso(self):
+        self.tipoRecurso.getNombre()
+
+    def getNumeroRT(self):
+        return self.numeroRT
+
+    def getDatos(self):
+        tipo_recurso_nombre = self.getTipoRecurso()
+        numero_RT = self.getNumeroRT()
+        modelo_nombre, marca_nombre = self.miModeloYMarca()
+        return tipo_recurso_nombre, numero_RT, modelo_nombre, marca_nombre
+
+
        
         
         
