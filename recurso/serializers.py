@@ -39,5 +39,5 @@ class EstadoSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Estado
-        fields = ['id', 'nombre', 'ambito', 'esReservable', 'esCancelable' ]
+        fields = ['id', 'nombre', 'ambito', 'reservable', 'esCancelable' ]
         read_only_fields = ['id']

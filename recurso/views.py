@@ -117,8 +117,9 @@ class VerificarTurnoDisponible(APIView):
     def post(self, request):
         # Recuros disponibles
         print(request)
-        gm = GestorIngresoMantenimiento()
-        gm.verificarTurno()
-        return Response('Hola')
+        gm = GestorIngresoMantenimiento(request)
+        data = gm.verificarTurno()
+        # gm.agruparRTPorTipoDeRecurso(data)
+        return Response(data, status=status.HTTP_200_OK)
 
    

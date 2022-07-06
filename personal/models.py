@@ -54,8 +54,12 @@ class PersonalCientifico(models.Model):
         pass
     def mostrarMisNovedades():
         pass
-    def obtenerTurnosRecurso(self,recurso):
-         return recurso.getTurnos()
+    def obtenerTurnosRecurso(self,fechaHoraActual,fechaFinMantenimiento,recurso):
+        return recurso.getTurnos(fechaHoraActual, fechaFinMantenimiento)
+    def getNombre(self):
+        return self.nombre
+    def generarMantenimientoCorrectivo(self,recurso, turno):
+        return recurso.generarMantenimientoCorrectivo(turno)
         
 
 
@@ -85,9 +89,11 @@ class AsignacionResponsableTecnicoRT(models.Model):
         pass
     def mostrarMisNovedades():
         pass
-
+    def getNombre(self):
+        return self.nombre
     def esPersonalCientificoLogueado(self,id_personal):
         return self.get_personal_cientifico() == id_personal
+
     def buscarRTDisponible(self):
         recursos_disponibles = []
         recursos_del_personal_asignado = self.recursos.all() #Obtengo las instancias de mis recursos
@@ -96,6 +102,7 @@ class AsignacionResponsableTecnicoRT(models.Model):
                 recursos_disponibles.append(recurso)
         return recursos_disponibles
 
-           
+    def getCientificoAsignado(self):
+        return self.personal.getNombre()
 
 
