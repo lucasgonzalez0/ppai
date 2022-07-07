@@ -20,4 +20,5 @@ urlpatterns = [
     path('', include(router.urls)),
     path('disponibles', views.RecursoTecnologicoDisponible.as_view(),name="recursos_disponibles"),
     path('verificarTurno', views.VerificarTurnoDisponible.as_view(),name="verificar_turno_dusasfas"),
+    path('tomarConfirmacionMantenimiento', views.TomarConfirmacionMantenimiento.as_view(),name="tomar_confirmacion_mantenimeinto"),
 ]

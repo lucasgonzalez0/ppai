@@ -58,9 +58,10 @@ class PersonalCientifico(models.Model):
         return recurso.getTurnos(fechaHoraActual, fechaFinMantenimiento)
     def getNombre(self):
         return self.nombre
-    def generarMantenimientoCorrectivo(self,recurso, turno):
-        return recurso.generarMantenimientoCorrectivo(turno)
-        
+    def generarMantenimientoCorrectivo(self,recurso, turnos, estado_rt,estado_turno, motivo, fecha):
+        return recurso.generarMantenimientoCorrectivo(recurso,turnos, estado_rt,estado_turno, motivo, fecha)
+    def getMailCientifico(self):
+        return self.correoElectronicoPersonal
 
 
 class AsignacionResponsableTecnicoRT(models.Model):

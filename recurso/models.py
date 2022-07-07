@@ -2,7 +2,7 @@ from ast import Raise
 from re import A
 from django.db import models
 from PIL import Image
-from mantenimiento.models import Turno
+from mantenimiento.models import Mantenimiento, Turno
 from datetime import date , datetime, tzinfo
 from django.utils import timezone
 
@@ -22,6 +22,7 @@ class GestorIngresoMantenimiento():
     asignacion_actual = None
     recursos_disponibles = [] 
     estado_cancelado_turno = None
+    estadoCanceladoPorMantenimientoCorrectivo = None
 
     recursos_disponibles_datos = []
     def __init__(self, request) -> None:
@@ -43,19 +44,44 @@ class GestorIngresoMantenimiento():
         for estado in estados:
             if estado.esAmbitoTurno():
                 if estado.esCanceladoPorMantenimientoCorrectivo():
-                    self.estado_cancelado_turno = estado
+                    return estado
     def buscarEstadoConIngresoEnMantenimientoCorrectivo(self):
         estados = Estado.objects.all()
         for estado in estados:
             if estado.esAmbitoRT():
                 if estado.esConIngresoEnMantenimientoCorrectivo():
-                    self.estado_rt_ingresoMantenimientoCorrectivo = estado
-    def generarMantenimientoCorrectivo(self):
-        self.personalCientifico.generarMantenimientoCorrectivo()
+                    return estado
+    def generarMantenimientoCorrectivo(self, recurso, turnos, estado_rt,estado_turno, motivo, fecha):
+        personalCientifico = PersonalCientifico.objects.get(pk=1) # borrar
+        personalCientifico.generarMantenimientoCorrectivo(recurso, turnos, estado_rt,estado_turno, motivo, fecha)
+
+        # self.personalCientifico.generarMantenimientoCorrectivo(recurso, turnos, estado, motivo, fecha)
+    def enviarNotificacionViaMail(self):
+        enviado = True
+        if enviado:
+            return True
+        
+        
+    def generarNotificacion(self):
+        #TODO: Verificar personalCientifico
+        personalCientifico = PersonalCientifico.objects.get(pk=1) # borrar
+
+        email = personalCientifico.getMailCientifico()
+        return self.enviarNotificacionViaMail()
+
     def tomarConfirmacionMantenimiento(self):
-        self.buscarEstadoCanceladoPorMantenimiento()
-        self.buscarEstadoConIngresoEnMantenimientoCorrectivo()
-        self.generarMantenimientoCorrectivo(self.reurso_seleccionado)
+        #TODO: #Pasar por parametro los turnos devueltos
+        self.motivo = self.request.data.get('motivo')
+        self.reurso_seleccionado = self.request.data.get('recurso')
+        recurso = RecursoTecnologico.objects.get(pk=self.reurso_seleccionado['id'])
+
+        fecha = datetime.today()
+        self.turnos = self.verificarTurno()
+        self.estadoCanceladoPorMantenimientoCorrectivo = self.buscarEstadoCanceladoPorMantenimiento()
+        estadoConIngresoEnMantenimientoCorrectivo = self.buscarEstadoConIngresoEnMantenimientoCorrectivo()
+        self.generarMantenimientoCorrectivo(recurso, self.turnos, estadoConIngresoEnMantenimientoCorrectivo, self.estadoCanceladoPorMantenimientoCorrectivo, self.motivo, fecha)
+        self.generarNotificacion()
+        return 'Notificaciones enviadas'
 
     def buscarRT(self):
         asignaciones = AsignacionResponsableTecnicoRT.objects.all()
@@ -73,9 +99,7 @@ class GestorIngresoMantenimiento():
         if self.recursos_disponibles_datos:
             self.agruparRTPorTipoDeRecurso()
     def getFechaHoraActual(self):
-        today = datetime.today()
-        self.fechaHoraActual = today
-
+        self.fechaHoraActual = datetime.today()
         return self.fechaHoraActual
 
     def verificarTurno(self):
@@ -104,6 +128,10 @@ class Estado(models.Model):
         pass
     def mostrarEstado():
         pass
+    def esCanceladoPorMantenimientoCorrectivo(self):
+        return self.nombre == 'Cancelado por mantenimiento correctivo'
+    def esConIngresoEnMantenimientoCorrectivo(self):
+        return self.nombre == 'Con ingreso mantenimiento correctivo'
     def esEstadoReservable(self):
         return self.esReservable
     def esAmbitoRT(self):
@@ -145,7 +173,9 @@ class CambioEstadoRT(models.Model):
                 estados_confirmado_o_pendiente.append(estado)
         return estados_confirmado_o_pendiente
 
-
+    def setFechaHoraHasta(self, fecha):
+        self.fechaHoraHasta = fecha
+        self.save()
     def esDisponible(self):
 
         estados = Estado.objects.all()
@@ -160,6 +190,7 @@ class CambioEstadoRT(models.Model):
                 estado_disponible = estado
 
         return self.estado == estado_disponible
+
 class Marca(models.Model):
     nombre = models.CharField(max_length = 500)
     
@@ -235,15 +266,18 @@ class RecursoTecnologico(models.Model):
         pass
     def miModeloYMarca(self):
         return self.modelo.getNombreModelo()
-    def nuevoMantenimientoPreventivo():
-        pass
+    def nuevoMantenimientoPreventivo(self,fechaInicio, motivo, recurso):
+        mantenimiento = Mantenimiento(fechaHoraInicio=fechaInicio, motivoMantenimiento=motivo, recurso=recurso)
+        mantenimiento.save()
+        return
     def getTurnos(self, fechaHoraActual, fechaFinMantenimiento): # # El metodo debería ser mas especifico? Ej: getTurnosConfirmadosOPendientes
         #Buscar mis turnos disponibles
         turnos_recurso = []
         turnos = Turno.objects.all()
         for turno in turnos:
             if turno.esMiTurno(self):
-                turnos_recurso.append(turno.getDatos(fechaHoraActual, fechaFinMantenimiento))
+                if turno.getDatos(fechaHoraActual, fechaFinMantenimiento):
+                    turnos_recurso.append(turno.getDatos(fechaHoraActual, fechaFinMantenimiento))
         return turnos_recurso
 
         # return self.turnos.all() 
@@ -260,11 +294,22 @@ class RecursoTecnologico(models.Model):
         numero_RT = self.getNumeroRT()
         modelo_nombre, marca_nombre = self.miModeloYMarca()
         return tipo_recurso_nombre, numero_RT, modelo_nombre, marca_nombre
-    
-    def actualizarEstadoTurnos():
-        
-    def generarMantenimientoCorrectivo(self):
-        self.actualizarEstadoTurnos()
+    def obtenerEstadoActual(self, fecha): #No es el mejor nombre
+        self.actual.setFechaHoraHasta(fecha)
+    def crearCambioEstadoRT(self,estado, fecha):
+        cambio_estado = CambioEstadoRT(fechaHoraDesde=fecha,estado=estado)
+        cambio_estado.save()
+        return
+    def actualizarEstadoTurnos(self, turnos, estado_rt, estado_turno):
+        fecha = datetime.today()
+        for turno in turnos:
+            turno = Turno.objects.get(pk=turno['id'])
+            turno.actualizarEstado(estado_turno, fecha)
+        self.obtenerEstadoActual(fecha)
+        self.crearCambioEstadoRT(estado_rt,fecha)
+    def generarMantenimientoCorrectivo(self,recurso, turnos,estado_rt, estado_turno, motivo, fecha):
+        self.actualizarEstadoTurnos(turnos, estado_rt,estado_turno)
+        self.nuevoMantenimientoPreventivo(fecha,motivo,recurso)
 
        
         

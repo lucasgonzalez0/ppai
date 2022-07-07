@@ -1,5 +1,6 @@
 from django.shortcuts import render
 from django.shortcuts import get_object_or_404
+from mantenimiento.serializer import TurnoSerializer
 from recurso.serializers import EstadoSerializer, MarcaSerializer, ModeloSerializer, RecursoTecnologicoSerializer
 from rest_framework import viewsets
 from rest_framework import status
@@ -112,14 +113,28 @@ class RecursoTecnologicoDisponible(generics.ListAPIView):
 
 
 class VerificarTurnoDisponible(APIView):
+
+    def post(self, request):
+        # Recuros disponibles
+        print(request)
+        gm = GestorIngresoMantenimiento(request)
+        turnos = gm.verificarTurno()
+        # print(type(turnos))
+        # print(turnos)
+        # serializer = TurnoSerializer(turnos, many=True)
+        # data = serializer.data
+
+
+        # gm.agruparRTPorTipoDeRecurso(data)
+        return Response(turnos, status=status.HTTP_200_OK)
+
+class TomarConfirmacionMantenimiento(APIView):
     
 
     def post(self, request):
         # Recuros disponibles
         print(request)
         gm = GestorIngresoMantenimiento(request)
-        data = gm.verificarTurno()
+        data = gm.tomarConfirmacionMantenimiento()
         # gm.agruparRTPorTipoDeRecurso(data)
         return Response(data, status=status.HTTP_200_OK)
-
-   
